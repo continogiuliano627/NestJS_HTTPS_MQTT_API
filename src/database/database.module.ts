@@ -7,7 +7,7 @@ import {TypeOrmModule} from '@nestjs/typeorm';
 			type: 'better-sqlite3',
 			database: 'db.sqlite',
 			autoLoadEntities: true,
-			synchronize: false
+			synchronize: true
 		})
 	]
 })
