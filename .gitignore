@@ -21,7 +21,6 @@ db.sqlite
 # OS / Editor
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
 
 # Bui
