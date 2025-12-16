@@ -1,7 +1,7 @@
 import {Column, Entity, PrimaryGeneratedColumn} from 'typeorm';
 
 @Entity({name: 'temp_sensor'})
-export class TempSenor {
+export class TempSensor {
 	@PrimaryGeneratedColumn('uuid')
 	id!: string;
 
