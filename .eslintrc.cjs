@@ -50,6 +50,20 @@ module.exports = {
       }
     }
   ],
+  overrides: [
+  {
+    files: ["src/**/*.controller.ts", "src/**/*.service.ts", "src/**/*.module.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-imports": "off"
+    }
+  },
+  {
+    files: ["*.cjs", "*.js"],
+    parserOptions: {
+      project: null
+    }
+  }
+],
 
   ignorePatterns: ["node_modules", "dist"]
 };
