@@ -1,5 +1,6 @@
 onlyBuiltDependencies:
   - '@nestjs/core'
   - '@scarf/scarf'
+  - bcrypt
   - better-sqlite3
   - unrs-resolver
