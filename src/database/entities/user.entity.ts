@@ -1,4 +1,4 @@
-import {Column, CreateDateColumn, Entity, PrimaryGeneratedColumn} from 'typeorm';
+import {Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn} from 'typeorm';
 
 import {UserRole} from 'src/global/enum';
 
@@ -18,4 +18,7 @@ export class User {
 
 	@CreateDateColumn()
 	createdAt: Date;
+
+	@UpdateDateColumn()
+	updatedAt: Date;
 }
