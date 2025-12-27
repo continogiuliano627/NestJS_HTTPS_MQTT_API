@@ -97,6 +97,8 @@ export class UserService {
 			}
 		});
 		if (!found) throw new NotFoundException('User not found');
+		const usersQuantity = await this.repository.count();
+		if (usersQuantity === 1) throw new ConflictException('Cannot delete the only existing user');
 		try {
 			await this.repository.delete({
 				id
