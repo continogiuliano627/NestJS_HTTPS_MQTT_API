@@ -5,6 +5,9 @@ import {AppService} from './app.service';
 import {DatabaseModule} from './database/database.module';
 import {TempSensorModule} from './temp-sensor/temp-sensor.module';
 import {UserModule} from './user/user.module';
+import { DeviceService } from './device/device.service';
+import { DeviceController } from './device/device.controller';
+import { DeviceModule } from './device/device.module';
 
 @Module({
 	imports: [
@@ -14,9 +17,10 @@ import {UserModule} from './user/user.module';
 		}),
 		DatabaseModule,
 		TempSensorModule,
-		UserModule
+		UserModule,
+		DeviceModule
 	],
-	controllers: [AppController],
-	providers: [AppService]
+	controllers: [AppController, DeviceController],
+	providers: [AppService, DeviceService]
 })
 export class AppModule {}
