@@ -42,13 +42,7 @@ export class DeviceService {
 			throw new BadRequestException('Error updating device: invalid name received');
 		const target = await this.repository.findOneBy({id: data.id});
 		//verificamos que exista y si isDeleted es true debe cambiar, no se puede cambiar un eliminado salvo se restaure
-		if (
-			!target ||
-			(data.isDeleted !== null &&
-				data.isDeleted !== undefined &&
-				target.isDeleted &&
-				data.isDeleted)
-		)
+		if (!target || (typeof data.isDeleted === 'boolean' && target.isDeleted && data.isDeleted))
 			throw new ConflictException('Error updating device: target device doesnt exists');
 		if (data.name && target.name === data.name)
 			throw new BadRequestException('Error updating device: new data is the same as existing data');
@@ -58,10 +52,7 @@ export class DeviceService {
 			await this.repository.save({
 				id: data.id,
 				name: data.name || target.name,
-				isDeleted:
-					data.isDeleted !== undefined && data.isDeleted !== null
-						? data.isDeleted
-						: target.isDeleted
+				isDeleted: typeof data.isDeleted === 'boolean' ? data.isDeleted : target.isDeleted
 			});
 		} catch (error) {
 			throw new InternalServerErrorException(`Error updating device: ${JSON.stringify(error)}`);
