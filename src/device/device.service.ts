@@ -89,6 +89,24 @@ export class DeviceService {
 		return await this.repository.findBy({isDeleted: true});
 	}
 
+	async restoreDeleted(id: string): Promise<Device> {
+		if (!isUUID(id)) throw new BadRequestException('Error restore device: ID provided is not UUID');
+		const target = await this.repository.findOneBy({id});
+		if (!target) throw new NotFoundException('Error restore device: target error not found');
+		if (!target.isDeleted) throw new ConflictException('Error restore device: device not deleted');
+		try {
+			await this.repository.save({...target, isDeleted: false});
+		} catch (error) {
+			throw new InternalServerErrorException(`Error restore device: ${JSON.stringify(error)}`);
+		}
+		const restored = await this.repository.findOneBy({id});
+		if (!restored)
+			throw new InternalServerErrorException('Error restore device: restored but not found');
+		if (restored.isDeleted)
+			throw new InternalServerErrorException('Error restore device: device wasnt restored');
+		return restored;
+	}
+
 	async deleteOne(data: DeviceDeleteDTO): Promise<boolean> {
 		if (!data || !data.id || !isUUID(data.id))
 			throw new BadRequestException('Error delete device: bad id received');
