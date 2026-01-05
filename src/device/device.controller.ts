@@ -133,6 +133,25 @@ export class DeviceController {
 		return this.deviceService.updateOne(data);
 	}
 
+	@Patch('restoreOne/:id/')
+	@ApiOperation({
+		summary: 'Restore one device by given id'
+	})
+	@ApiParam({
+		name: 'id',
+		type: 'string',
+		required: true
+	})
+	@ApiResponse({
+		isArray: false,
+		status: 201,
+		description: 'Device restored',
+		example: DeviceExample
+	})
+	restoreOne(@Param('id', new ParseUUIDPipe()) id: string) {
+		return this.deviceService.restoreDeleted(id);
+	}
+
 	@Delete('/delete')
 	@ApiOperation({
 		summary: 'Delete a device by id'
