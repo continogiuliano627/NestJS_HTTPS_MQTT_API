@@ -40,7 +40,7 @@ export class UserService {
 
 	async findById(id: string): Promise<User> {
 		if (!id?.length || !isUuid(id))
-			throw new ConflictException('Error find user byId: ID provided is not UUID');
+			throw new BadRequestException('Error find user byId: ID provided is not UUID');
 		const found = await this.repository.findOneBy({id});
 		if (!found) throw new NotFoundException('Error find user byIdUser not found');
 		return found;
@@ -61,26 +61,25 @@ export class UserService {
 		return found;
 	}
 
-	async updateUser(id: string, name?: string, role?: UserRole, isDeleted?: boolean): Promise<User> {
+	async updateUser(id: string, name?: string, role?: UserRole): Promise<User> {
 		if (!id || !isUuid(id)) throw new BadRequestException('Error update user: Invalid ID');
-		if (!name?.length && !role && typeof isDeleted !== 'boolean')
-			throw new BadRequestException('Error update user: Missing props');
+		if (!name?.length && !role) throw new BadRequestException('Error update user: Missing props');
 		if (name && name.length < 3) throw new BadRequestException('Error update user: Name too short');
 		if (role && role !== UserRole.ADMIN && role !== UserRole.USER)
 			throw new BadRequestException('Error update user: Invalid role');
 		const target = await this.repository.findOneBy({id});
 		if (!target) throw new NotFoundException('Error update user: User not found');
-		if (target.isDeleted && (typeof isDeleted !== 'boolean' || isDeleted))
+		/* if (target.isDeleted && (typeof isDeleted !== 'boolean' || isDeleted))
 			throw new BadRequestException(
 				'Error update user: deleted user cannot be updated only restored.'
-			);
+			); */
 		const newData: User = {
 			id,
 			name: name?.length ? name : target.name,
 			role: role ? role : target.role,
 			createdAt: target.createdAt,
 			updatedAt: new Date(),
-			isDeleted: typeof isDeleted === 'boolean' ? isDeleted : target.isDeleted
+			isDeleted: target.isDeleted
 		};
 		if (deepEqual(target as unknown as PlainObject, newData as unknown as PlainObject))
 			return target;
@@ -99,6 +98,24 @@ export class UserService {
 
 	async getDeleted(): Promise<User[]> {
 		return this.repository.findBy({isDeleted: true});
+	}
+
+	async restoreDeleted(id: string): Promise<User> {
+		if (!isUuid(id)) throw new BadRequestException('Error restore user: ID provided is not UUID');
+		const target = await this.repository.findOneBy({id});
+		if (!target) throw new NotFoundException('Error restore user: target error not found');
+		if (!target.isDeleted) throw new ConflictException('Error restore user: user not deleted');
+		try {
+			await this.repository.save({...target, isDeleted: false});
+		} catch (error) {
+			throw new InternalServerErrorException(`Error restore user: ${JSON.stringify(error)}`);
+		}
+		const restored = await this.repository.findOneBy({id});
+		if (!restored)
+			throw new InternalServerErrorException('Error restore user: restored but not found');
+		if (restored.isDeleted)
+			throw new InternalServerErrorException('Error restore user: user wasnt restored');
+		return restored;
 	}
 
 	async deleteOne(id: string): Promise<boolean> {
