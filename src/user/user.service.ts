@@ -128,7 +128,7 @@ export class UserService {
 		});
 		if (!found) throw new NotFoundException('Error delete user: User not found');
 		if (found.isDeleted) throw new BadRequestException('Error delete user: User already deleted');
-		const usersQuantity = await this.repository.count();
+		const usersQuantity = await this.repository.countBy({isDeleted: false});
 		if (usersQuantity === 1)
 			throw new ConflictException('Error delete user: Cannot delete the only existing user');
 		try {
