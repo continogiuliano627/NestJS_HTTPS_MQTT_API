@@ -4,6 +4,7 @@ import {AppController} from './app.controller';
 import {AppService} from './app.service';
 import {DatabaseModule} from './database/database.module';
 import {DeviceModule} from './device/device.module';
+import {MqttModule} from './mqtt/mqtt.module';
 import {TempSensorModule} from './temp-sensor/temp-sensor.module';
 import {UserModule} from './user/user.module';
 
@@ -16,7 +17,8 @@ import {UserModule} from './user/user.module';
 		DatabaseModule,
 		TempSensorModule,
 		UserModule,
-		DeviceModule
+		DeviceModule,
+		MqttModule
 	],
 	controllers: [AppController],
 	providers: [AppService]
