@@ -3,11 +3,11 @@ import {ConfigModule} from '@nestjs/config';
 import {AppController} from './app.controller';
 import {AppService} from './app.service';
 import {DatabaseModule} from './database/database.module';
+import {DeviceModule} from './device/device.module';
+import {ErrorLogsModule} from './error_logs/error_log.module';
+import {MqttModule} from './mqtt/mqtt.module';
 import {TempSensorModule} from './temp-sensor/temp-sensor.module';
 import {UserModule} from './user/user.module';
-import { DeviceService } from './device/device.service';
-import { DeviceController } from './device/device.controller';
-import { DeviceModule } from './device/device.module';
 
 @Module({
 	imports: [
@@ -18,9 +18,11 @@ import { DeviceModule } from './device/device.module';
 		DatabaseModule,
 		TempSensorModule,
 		UserModule,
-		DeviceModule
+		DeviceModule,
+		MqttModule,
+		ErrorLogsModule
 	],
-	controllers: [AppController, DeviceController],
-	providers: [AppService, DeviceService]
+	controllers: [AppController],
+	providers: [AppService]
 })
 export class AppModule {}

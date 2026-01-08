@@ -42,13 +42,7 @@ export class DeviceService {
 			throw new BadRequestException('Error updating device: invalid name received');
 		const target = await this.repository.findOneBy({id: data.id});
 		//verificamos que exista y si isDeleted es true debe cambiar, no se puede cambiar un eliminado salvo se restaure
-		if (
-			!target ||
-			(data.isDeleted !== null &&
-				data.isDeleted !== undefined &&
-				target.isDeleted &&
-				data.isDeleted)
-		)
+		if (!target || (typeof data.isDeleted === 'boolean' && target.isDeleted && data.isDeleted))
 			throw new ConflictException('Error updating device: target device doesnt exists');
 		if (data.name && target.name === data.name)
 			throw new BadRequestException('Error updating device: new data is the same as existing data');
@@ -58,10 +52,7 @@ export class DeviceService {
 			await this.repository.save({
 				id: data.id,
 				name: data.name || target.name,
-				isDeleted:
-					data.isDeleted !== undefined && data.isDeleted !== null
-						? data.isDeleted
-						: target.isDeleted
+				isDeleted: typeof data.isDeleted === 'boolean' ? data.isDeleted : target.isDeleted
 			});
 		} catch (error) {
 			throw new InternalServerErrorException(`Error updating device: ${JSON.stringify(error)}`);
@@ -96,6 +87,24 @@ export class DeviceService {
 
 	async findDeleted(): Promise<Device[]> {
 		return await this.repository.findBy({isDeleted: true});
+	}
+
+	async restoreDeleted(id: string): Promise<Device> {
+		if (!isUUID(id)) throw new BadRequestException('Error restore device: ID provided is not UUID');
+		const target = await this.repository.findOneBy({id});
+		if (!target) throw new NotFoundException('Error restore device: target error not found');
+		if (!target.isDeleted) throw new ConflictException('Error restore device: device not deleted');
+		try {
+			await this.repository.save({...target, isDeleted: false});
+		} catch (error) {
+			throw new InternalServerErrorException(`Error restore device: ${JSON.stringify(error)}`);
+		}
+		const restored = await this.repository.findOneBy({id});
+		if (!restored)
+			throw new InternalServerErrorException('Error restore device: restored but not found');
+		if (restored.isDeleted)
+			throw new InternalServerErrorException('Error restore device: device wasnt restored');
+		return restored;
 	}
 
 	async deleteOne(data: DeviceDeleteDTO): Promise<boolean> {

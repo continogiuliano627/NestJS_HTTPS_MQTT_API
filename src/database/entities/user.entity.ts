@@ -16,6 +16,9 @@ export class User {
 	})
 	role: UserRole;
 
+	@Column({default: false})
+	isDeleted: boolean;
+
 	@CreateDateColumn()
 	createdAt: Date;
 

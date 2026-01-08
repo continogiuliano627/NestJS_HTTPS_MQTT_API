@@ -40,6 +40,18 @@ export class UserController {
 		return this.userService.getAll();
 	}
 
+	@Get('/getDeleted')
+	@ApiOperation({
+		summary: 'Get all deleted users'
+	})
+	@ApiResponse({
+		description: 'Deleted users array',
+		status: 200
+	})
+	getDeleted() {
+		return this.userService.getDeleted();
+	}
+
 	@Get('/getById/:id')
 	@ApiOperation({
 		summary: 'Get 1 user by ID'
@@ -144,6 +156,25 @@ export class UserController {
 		if (!data.name?.length && !data.role?.length)
 			throw new BadRequestException('New user data must not be empty');
 		return this.userService.updateUser(id, data.name, data.role);
+	}
+
+	@Patch('restoreOne/:id/')
+	@ApiOperation({
+		summary: 'Restore one user by given id'
+	})
+	@ApiParam({
+		name: 'id',
+		type: 'string',
+		required: true
+	})
+	@ApiResponse({
+		isArray: false,
+		status: 201,
+		description: 'User restored',
+		example: UserExample
+	})
+	restoreOne(@Param('id', new ParseUUIDPipe()) id: string) {
+		return this.userService.restoreDeleted(id);
 	}
 
 	//POSTS
