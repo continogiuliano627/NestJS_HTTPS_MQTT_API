@@ -1,8 +1,8 @@
-import {IsBoolean, IsString, IsUUID} from 'class-validator';
+import {IsBoolean, IsString, Matches} from 'class-validator';
 import {CreateDateColumn, UpdateDateColumn} from 'typeorm';
 
 export const DeviceExample: DeviceDTO = {
-	id: '552a5eca-ec23-431d-a95e-04e582e65dcf',
+	id: 'AA:A1:BC:EE:56:65',
 	name: 'Modulo Luces Entrada',
 	isDeleted: false,
 	createdAt: new Date('1997-12-22T15:13:00Z'),
@@ -10,7 +10,7 @@ export const DeviceExample: DeviceDTO = {
 };
 
 export class DeviceDTO {
-	@IsUUID()
+	@Matches(/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i)
 	@IsString()
 	id: string;
 
@@ -28,7 +28,7 @@ export class DeviceDTO {
 }
 
 export class DeviceUpdateDTO {
-	@IsUUID()
+	@Matches(/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i)
 	@IsString()
 	id: string;
 
@@ -40,10 +40,9 @@ export class DeviceUpdateDTO {
 }
 
 export class DeviceDeleteDTO {
-	@IsUUID()
+	@Matches(/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i)
 	@IsString()
 	id: string;
-
 	@IsBoolean()
 	force: boolean;
 }
