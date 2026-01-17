@@ -27,3 +27,5 @@ export type mqttResp = {
 	pin: string;
 	value: string;
 };
+
+export type MqttMessageHandler = (topic: string, payload: Buffer) => void;
