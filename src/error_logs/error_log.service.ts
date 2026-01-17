@@ -5,12 +5,14 @@ import {
 	NotFoundException
 } from '@nestjs/common';
 import {Cron} from '@nestjs/schedule';
+import {InjectRepository} from '@nestjs/typeorm';
 import {isUUID} from 'class-validator';
 import {ErrorLog} from 'src/database/entities/error-log.entity';
 import {Between, DataSource, Repository} from 'typeorm';
 @Injectable()
 export class ErrorLogsService {
 	constructor(
+		@InjectRepository(ErrorLog)
 		private readonly repository: Repository<ErrorLog>,
 		private readonly dataSource: DataSource
 	) {}
