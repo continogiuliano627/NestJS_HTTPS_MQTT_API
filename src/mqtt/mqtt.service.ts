@@ -28,7 +28,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
 		});
 
 		this.client.on('error', (err) => {
-			console.log(`Error intercepted: '${JSON.stringify(err)}'`);
+			console.error(`Error intercepted: '${JSON.stringify(err)}'`);
 		});
 	}
 
