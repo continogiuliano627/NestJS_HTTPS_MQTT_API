@@ -7,4 +7,7 @@ export class ModuleType {
 
 	@Column({unique: true})
 	name: string;
+
+	@Column({type: 'boolean', default: false})
+	isDeleted: boolean;
 }
