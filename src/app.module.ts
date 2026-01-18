@@ -5,8 +5,8 @@ import {AppService} from './app.service';
 import {DatabaseModule} from './database/database.module';
 import {DeviceModule} from './device/device.module';
 import {ErrorLogsModule} from './error_logs/error_log.module';
+import {ModuleTypeModule} from './module-type/module-type.module';
 import {MqttModule} from './mqtt/mqtt.module';
-import {TempSensorModule} from './temp-sensor/temp-sensor.module';
 import {UserModule} from './user/user.module';
 
 @Module({
@@ -16,11 +16,11 @@ import {UserModule} from './user/user.module';
 			envFilePath: '.env'
 		}),
 		DatabaseModule,
-		TempSensorModule,
 		UserModule,
 		DeviceModule,
 		MqttModule,
-		ErrorLogsModule
+		ErrorLogsModule,
+		ModuleTypeModule
 	],
 	controllers: [AppController],
 	providers: [AppService]

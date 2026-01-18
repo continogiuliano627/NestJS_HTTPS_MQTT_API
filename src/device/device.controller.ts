@@ -81,6 +81,19 @@ export class DeviceController {
 		return this.deviceService.findByName(name);
 	}
 
+	@Get('/mqtt/connected')
+	@ApiOperation({
+		summary: 'Get connected MQTT devices'
+	})
+	@ApiResponse({
+		status: 200,
+		description: 'List of connected MQTT devices',
+		isArray: true
+	})
+	getConnectedMqttDevices() {
+		return this.deviceService.getConnectedMqttDevices();
+	}
+
 	@Post('/create')
 	@ApiOperation({
 		summary: 'Create a new device'

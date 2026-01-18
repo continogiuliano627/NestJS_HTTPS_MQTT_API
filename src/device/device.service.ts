@@ -8,12 +8,17 @@ import {
 import {InjectRepository} from '@nestjs/typeorm';
 import {isUUID} from 'class-validator';
 import {Device} from 'src/database/entities/device.entity';
+import {MqttService} from 'src/mqtt/mqtt.service';
 import {Repository} from 'typeorm';
 import {DeviceDeleteDTO, DeviceUpdateDTO} from './device.dto';
+import {parseMqttMessage} from './device.utils';
 
 @Injectable()
 export class DeviceService {
-	constructor(@InjectRepository(Device) private repository: Repository<Device>) {}
+	constructor(
+		@InjectRepository(Device) private repository: Repository<Device>,
+		private mqttService: MqttService
+	) {}
 
 	async createOne(name: string): Promise<Device> {
 		if (!name || name.length < 3)
@@ -135,5 +140,31 @@ export class DeviceService {
 		if (!deleted || !deleted.isDeleted)
 			throw new InternalServerErrorException('Error delete service: device wasnt deleted');
 		return true;
+	}
+
+	async getConnectedMqttDevices(): Promise<string[]> {
+		const topic = process.env.MQTT_DEFAULT_TOPIC!;
+		const devices = new Set<string>();
+
+		return new Promise((resolve) => {
+			const handler = (receivedTopic: string, payload: Buffer) => {
+				if (receivedTopic !== topic)
+					throw new InternalServerErrorException(
+						`Error get connected mqtt devices: received topic != default topic`
+					);
+				const msg = parseMqttMessage(payload);
+				if (!msg) return null;
+				devices.add(msg.device);
+			};
+
+			this.mqttService.addHandler(handler);
+
+			this.mqttService.publish(topic, JSON.stringify({id: `device_report`, device: `backend`}));
+
+			setTimeout(() => {
+				this.mqttService.removeHandler(handler);
+				resolve([...devices]);
+			}, 2000);
+		});
 	}
 }

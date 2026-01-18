@@ -1,8 +1,16 @@
-import {Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn} from 'typeorm';
+import {
+	Column,
+	CreateDateColumn,
+	Entity,
+	OneToMany,
+	PrimaryColumn,
+	UpdateDateColumn
+} from 'typeorm';
+import {Device_Module} from './device-module.entity';
 
 @Entity('devices')
 export class Device {
-	@PrimaryGeneratedColumn('uuid')
+	@PrimaryColumn({type: 'text'})
 	id: string;
 
 	@Column({unique: false})
@@ -10,6 +18,9 @@ export class Device {
 
 	@Column({default: false, type: 'boolean'})
 	isDeleted: boolean;
+
+	@OneToMany(() => Device_Module, (module) => module.device)
+	modules: Device_Module[];
 
 	@CreateDateColumn()
 	createdAt: Date;
