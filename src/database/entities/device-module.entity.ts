@@ -3,7 +3,7 @@ import {Device} from './device.entity';
 import {ModuleType} from './module-type.entity';
 
 @Entity('device_module')
-export class DeviceModule {
+export class Device_Module {
 	@PrimaryGeneratedColumn('uuid')
 	id: string;
 
