@@ -27,6 +27,15 @@ export class DeviceDTO {
 	createdAt: Date;
 }
 
+export class DeviceCreateDTO {
+	@Matches(/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i)
+	@IsString()
+	id: string;
+
+	@IsString()
+	name: string;
+}
+
 export class DeviceUpdateDTO {
 	@Matches(/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i)
 	@IsString()
