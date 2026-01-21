@@ -26,7 +26,8 @@ export const parseMqttMessage = (payload: Buffer): DeviceMqttResponseDTO | null 
 		return null;
 	}
 	if ((parsed as {id: unknown}).id !== 'report') {
-		console.error(`failed id value: ${JSON.stringify(parsed.id)}`);
+		if ((parsed as {id: unknown}).id !== 'device_report')
+			console.error(`failed id value: ${JSON.stringify(parsed.id)}`);
 		return null;
 	}
 	if (typeof (parsed as {device: unknown}).device !== 'string') {
