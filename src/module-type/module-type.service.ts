@@ -8,19 +8,22 @@ import {
 import {InjectRepository} from '@nestjs/typeorm';
 import {isUUID} from 'class-validator';
 import {ModuleType} from 'src/database/entities/module-type.entity';
+import {ModuleKind} from 'src/global/enum';
 import {Repository} from 'typeorm';
 
 @Injectable()
 export class ModuleTypeService {
 	constructor(@InjectRepository(ModuleType) private repository: Repository<ModuleType>) {}
 
-	async createOne(name: string): Promise<ModuleType> {
+	async createOne(name: string, kind: ModuleKind): Promise<ModuleType> {
 		if (!name || name.length < 3)
 			throw new BadRequestException(`Error create new module type: invalid name`);
+		if (!kind || (kind !== 'ACT' && kind !== 'READ'))
+			throw new BadRequestException(`Error create new module type: invalid kind`);
 		const inUse = await this.repository.findOneBy({name});
 		if (inUse) throw new ConflictException(`Error create new module type: name already in use`);
 		try {
-			await this.repository.save({name});
+			await this.repository.save({name, kind});
 		} catch (error) {
 			throw new InternalServerErrorException(
 				`Error create new module type: ${JSON.stringify(error)}`
@@ -70,18 +73,20 @@ export class ModuleTypeService {
 		return this.repository.find();
 	}
 
-	async updateOne(id: string, name: string): Promise<ModuleType> {
+	async updateOne(id: string, name: string, kind: ModuleKind): Promise<ModuleType> {
 		if (!isUUID(id)) throw new BadRequestException(`Error update ModuleType: bad uuid received`);
 		if (!name || name.length < 3)
 			throw new BadRequestException(`Error update ModuleType: bad name received`);
+		if (!kind || (kind !== 'ACT' && kind !== 'READ'))
+			throw new BadRequestException(`Error updateModuleType: invalid kind`);
 		const target = await this.repository.findOneBy({id});
 		if (!target) throw new BadRequestException(`Error update ModuleType: target not found`);
-		if (target.name === name)
+		if (target.name === name && target.kind === kind)
 			throw new BadRequestException(`Error update ModuleType: no value to be changed`);
 		const inUse = await this.repository.findOneBy({name});
 		if (inUse) throw new ConflictException(`Error update ModuleType: name already in use`);
 		try {
-			await this.repository.save({...target, name});
+			await this.repository.save({...target, name, kind});
 		} catch (error) {
 			throw new InternalServerErrorException(`Error update ModuleType: ${JSON.stringify(error)}`);
 		}

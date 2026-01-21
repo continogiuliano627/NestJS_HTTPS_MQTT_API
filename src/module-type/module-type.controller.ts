@@ -98,7 +98,7 @@ export class ModuleTypeController {
 		example: ModuleTypeExample
 	})
 	updateOne(@Body() data: ModuleTypeUpdateBodyDTO) {
-		return this.service.updateOne(data.id, data.name);
+		return this.service.updateOne(data.id, data.name, data.kind);
 	}
 
 	@Post('create')
@@ -122,7 +122,7 @@ export class ModuleTypeController {
 		example: ModuleTypeExample
 	})
 	createOne(@Body() data: ModuleTypeCreateBodyDTO) {
-		return this.service.createOne(data.name);
+		return this.service.createOne(data.name, data.kind);
 	}
 
 	@Patch('restore')
