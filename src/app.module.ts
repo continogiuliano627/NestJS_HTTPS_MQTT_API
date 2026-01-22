@@ -3,6 +3,7 @@ import {ConfigModule} from '@nestjs/config';
 import {AppController} from './app.controller';
 import {AppService} from './app.service';
 import {DatabaseModule} from './database/database.module';
+import {DeviceModuleModule} from './device-module/device-module.module';
 import {DeviceModule} from './device/device.module';
 import {ErrorLogsModule} from './error_logs/error_log.module';
 import {ModuleTypeModule} from './module-type/module-type.module';
@@ -20,7 +21,8 @@ import {UserModule} from './user/user.module';
 		DeviceModule,
 		MqttModule,
 		ErrorLogsModule,
-		ModuleTypeModule
+		ModuleTypeModule,
+		DeviceModuleModule
 	],
 	controllers: [AppController],
 	providers: [AppService]
