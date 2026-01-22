@@ -12,15 +12,15 @@ export class Device_Module {
 
 	@ManyToOne(() => Device, (device) => device.modules, {onDelete: 'CASCADE'})
 	@JoinColumn({name: 'deviceId'})
-	device: Device;
+	device: Device; //
 
 	@Column()
-	deviceId: string;
+	deviceId: string; //RELATED DEVICE MAC
 
 	@ManyToOne(() => ModuleType)
 	@JoinColumn({name: 'typeId'})
 	type: ModuleType;
 
 	@Column()
-	typeId: string;
+	typeId: string; //ID DEL TIPO DE MODULO
 }
