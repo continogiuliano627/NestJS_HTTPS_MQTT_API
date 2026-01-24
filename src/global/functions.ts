@@ -41,3 +41,8 @@ export const deepEqual = (obj1: PlainObject, obj2: PlainObject): boolean => {
 
 	return true;
 };
+
+export const MacAddressRegex = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i;
+export const MatchesMAC = (id: string): boolean => {
+	return MacAddressRegex.test(id);
+};

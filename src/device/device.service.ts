@@ -6,8 +6,8 @@ import {
 	NotFoundException
 } from '@nestjs/common';
 import {InjectRepository} from '@nestjs/typeorm';
-import {isUUID} from 'class-validator';
 import {Device} from 'src/database/entities/device.entity';
+import {MacAddressRegex, MatchesMAC} from 'src/global/functions';
 import {MqttService} from 'src/mqtt/mqtt.service';
 import {Repository} from 'typeorm';
 import {DeviceDeleteDTO, DeviceUpdateDTO} from './device.dto';
@@ -20,16 +20,27 @@ export class DeviceService {
 		private mqttService: MqttService
 	) {}
 
-	async createOne(name: string): Promise<Device> {
+	async createOne(name: string, id: string): Promise<Device> {
 		if (!name || name.length < 3)
 			throw new BadRequestException('Error creating device: invalid name received');
-		const exists = await this.repository.findOneBy({
+		if (!id || !MacAddressRegex.test(id))
+			throw new BadRequestException(`Error creating device: Bad id received`);
+		const existsName = await this.repository.findOneBy({
 			name
 		});
-		if (exists && !exists.isDeleted)
-			throw new ConflictException('Error creating device: Device already exists');
+		if (existsName) {
+			if (!existsName.isDeleted)
+				throw new ConflictException('Error creating device: Device with this name already exists');
+			else throw new ConflictException('Error creating device: Device must be restored');
+		}
+		const existsId = await this.repository.findOneBy({id});
+		if (existsId) {
+			if (!existsId.isDeleted)
+				throw new ConflictException('Error creating device: Device with this id already exists');
+			else throw new ConflictException('Error creating device: Device must be restored');
+		}
 		try {
-			await this.repository.save({name});
+			await this.repository.save({id, name});
 		} catch (error) {
 			throw new InternalServerErrorException(`Error creating device: ${JSON.stringify(error)}`);
 		}
@@ -41,17 +52,18 @@ export class DeviceService {
 
 	async updateOne(data: DeviceUpdateDTO): Promise<Device> {
 		if (!data) throw new BadRequestException('Error updating device: no data received');
-		if (!data.id || !isUUID(data.id))
-			throw new BadRequestException('Error updating device: invalid uuid received');
+		if (!data.id || !MatchesMAC(data.id))
+			throw new BadRequestException('Error updating device: invalid mac received');
 		if (!data.name || data.name.length < 3)
 			throw new BadRequestException('Error updating device: invalid name received');
 		const target = await this.repository.findOneBy({id: data.id});
 		//verificamos que exista y si isDeleted es true debe cambiar, no se puede cambiar un eliminado salvo se restaure
-		if (!target || (typeof data.isDeleted === 'boolean' && target.isDeleted && data.isDeleted))
-			throw new ConflictException('Error updating device: target device doesnt exists');
+		if (!target) throw new ConflictException('Error updating device: target device doesnt exists');
+		if (target.isDeleted)
+			throw new BadRequestException(
+				`Error updating device: cant update deleted device, only restore`
+			);
 		if (data.name && target.name === data.name)
-			throw new BadRequestException('Error updating device: new data is the same as existing data');
-		if (data.isDeleted && target.isDeleted === data.isDeleted)
 			throw new BadRequestException('Error updating device: new data is the same as existing data');
 		try {
 			await this.repository.save({
@@ -71,7 +83,7 @@ export class DeviceService {
 	}
 
 	async findById(id: string): Promise<Device> {
-		if (!id || !isUUID(id))
+		if (!id || !MatchesMAC(id))
 			throw new BadRequestException('Error find device by ID: bad id received');
 		const found = await this.repository.findOneBy({id});
 		if (!found) throw new NotFoundException('Error find device by ID: element not found');
@@ -87,7 +99,7 @@ export class DeviceService {
 	}
 
 	async findAll(): Promise<Device[]> {
-		return await this.repository.find();
+		return await this.repository.findBy({isDeleted: false});
 	}
 
 	async findDeleted(): Promise<Device[]> {
@@ -95,7 +107,8 @@ export class DeviceService {
 	}
 
 	async restoreDeleted(id: string): Promise<Device> {
-		if (!isUUID(id)) throw new BadRequestException('Error restore device: ID provided is not UUID');
+		if (!MatchesMAC(id))
+			throw new BadRequestException('Error restore device: ID provided is not MAC');
 		const target = await this.repository.findOneBy({id});
 		if (!target) throw new NotFoundException('Error restore device: target error not found');
 		if (!target.isDeleted) throw new ConflictException('Error restore device: device not deleted');
@@ -113,7 +126,7 @@ export class DeviceService {
 	}
 
 	async deleteOne(data: DeviceDeleteDTO): Promise<boolean> {
-		if (!data || !data.id || !isUUID(data.id))
+		if (!data || !data.id || !MatchesMAC(data.id))
 			throw new BadRequestException('Error delete device: bad id received');
 		const found = await this.repository.findOneBy({id: data.id});
 		if (!found) throw new NotFoundException('Error delete device: element not found');

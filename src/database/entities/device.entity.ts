@@ -1,12 +1,4 @@
-import {
-	Column,
-	CreateDateColumn,
-	Entity,
-	OneToMany,
-	PrimaryColumn,
-	UpdateDateColumn
-} from 'typeorm';
-import {Device_Module} from './device-module.entity';
+import {Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn} from 'typeorm';
 
 @Entity('devices')
 export class Device {
@@ -18,9 +10,6 @@ export class Device {
 
 	@Column({default: false, type: 'boolean'})
 	isDeleted: boolean;
-
-	@OneToMany(() => Device_Module, (module) => module.device)
-	modules: Device_Module[];
 
 	@CreateDateColumn()
 	createdAt: Date;
