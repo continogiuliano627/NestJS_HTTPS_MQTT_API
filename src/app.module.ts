@@ -5,6 +5,7 @@ import {AppService} from './app.service';
 import {DatabaseModule} from './database/database.module';
 import {DeviceModuleModule} from './device-module/device-module.module';
 import {DeviceModule} from './device/device.module';
+import {DeviceActionLogModule} from './device_action_log/dal.module';
 import {ErrorLogsModule} from './error_logs/error_log.module';
 import {ModuleTypeModule} from './module-type/module-type.module';
 import {MqttModule} from './mqtt/mqtt.module';
@@ -17,12 +18,13 @@ import {UserModule} from './user/user.module';
 			envFilePath: '.env'
 		}),
 		DatabaseModule,
-		UserModule,
 		DeviceModule,
-		MqttModule,
+		DeviceActionLogModule,
+		DeviceModuleModule,
 		ErrorLogsModule,
 		ModuleTypeModule,
-		DeviceModuleModule
+		MqttModule,
+		UserModule
 	],
 	controllers: [AppController],
 	providers: [AppService]
