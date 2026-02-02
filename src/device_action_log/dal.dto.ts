@@ -22,6 +22,20 @@ export class DeviceActionLogComplete {
 	errorMessage: string | null;
 }
 
+export class DeviceActionLogCreateDTO {
+	deviceId: string;
+	pin: string;
+	action: 'read' | 'set';
+	requestedValue: string;
+}
+
+export class DeviceActionLogUpdateStatusDTO {
+	id: string;
+	responseValue: string;
+	status: DeviceActionStatus;
+	errorMessage: string | null;
+}
+
 export const DeviceActionLogExampleRead: DeviceActionLogComplete = {
 	action: 'read',
 	device: DeviceExample,
