@@ -55,3 +55,9 @@ export class DeviceDeleteDTO {
 	@IsBoolean()
 	force: boolean;
 }
+export class DeviceSendActionDTO {
+	id: string;
+	action: 'read' | 'set';
+	pin: string;
+	value: string;
+}

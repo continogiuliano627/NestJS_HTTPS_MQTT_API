@@ -1,6 +1,12 @@
 import {Body, Controller, Delete, Get, Param, Patch, Post, Query} from '@nestjs/common';
 import {ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse} from '@nestjs/swagger';
-import {DeviceCreateDTO, DeviceDeleteDTO, DeviceExample, DeviceUpdateDTO} from './device.dto';
+import {
+	DeviceCreateDTO,
+	DeviceDeleteDTO,
+	DeviceExample,
+	DeviceSendActionDTO,
+	DeviceUpdateDTO
+} from './device.dto';
 import {DeviceService} from './device.service';
 
 @Controller('device')
@@ -105,6 +111,33 @@ export class DeviceController {
 	})
 	createOne(@Body() data: DeviceCreateDTO) {
 		return this.deviceService.createOne(data.name, data.id);
+	}
+
+	@Post('send_action')
+	@ApiOperation({
+		summary: 'Sends an MQTT action to a target device'
+	})
+	@ApiBody({
+		description: 'Data for the action to send',
+		required: true,
+		examples: {
+			1: {
+				value: {
+					id: DeviceExample.id,
+					action: 'set',
+					pin: 2,
+					value: 'LOW'
+				}
+			}
+		}
+	})
+	@ApiResponse({
+		status: 204,
+		description: 'String confirming the action',
+		isArray: false
+	})
+	sendAction(@Body() data: DeviceSendActionDTO) {
+		return this.deviceService.sendAction(data);
 	}
 
 	@Patch('/update')
