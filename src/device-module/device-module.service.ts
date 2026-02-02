@@ -55,7 +55,9 @@ export class DeviceModuleService {
 				device,
 				deviceId: e.deviceId,
 				type,
-				typeId: e.typeId
+				typeId: e.typeId,
+				pin: e.pin,
+				icon: -1
 			};
 		});
 	}
@@ -68,6 +70,7 @@ export class DeviceModuleService {
 			throw new BadRequestException(`Error create Device_module: no device_id received`);
 		if (!dto.typeId)
 			throw new BadRequestException(`Error create Device_module: no type_id received`);
+		if (!dto.pin) throw new BadRequestException(`Error create Device_module: no pin received`);
 		const device = await this.DeviceRepository.findOne({
 			where: {
 				id: dto.deviceId
@@ -161,6 +164,18 @@ export class DeviceModuleService {
 		if (!updated)
 			throw new InternalServerErrorException(`Error update Device_module: updated went null`);
 		return (await this.makeRelations([updated]))[0];
+	}
+
+	async setIcon(id: string, index: number): Promise<number> {
+		if (!isUUID(id)) throw new BadRequestException(`Error set Device_module icon: bad id received`);
+		if (typeof index !== 'number')
+			throw new BadRequestException(`Error set Device_module icon: invalid index`);
+		const target = await this.repository.findOneBy({id});
+		if (!target)
+			throw new BadRequestException(`Error set Device_module icon: target doesnt exists`);
+		if (!(await this.repository.update(id, {icon: index})))
+			throw new InternalServerErrorException(`Error set Device_module icon: couldnt update`);
+		return index;
 	}
 
 	async deleteOne(id: string): Promise<boolean> {
