@@ -26,6 +26,7 @@ export type mqttResp = {
 	action: string;
 	pin: string;
 	value: string;
+	error?: string;
 };
 
 export type MqttMessageHandler = (topic: string, payload: Buffer) => void;
