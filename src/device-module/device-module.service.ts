@@ -140,18 +140,30 @@ export class DeviceModuleService {
 		if (!isUUID(id)) throw new BadRequestException(`Error update Device_module: id must be UUID`);
 		if (!dto) throw new BadRequestException(`Error update Device_module: bad props received`);
 		if (
-			(typeof dto.name !== 'string' && typeof dto.typeId !== 'string') ||
-			(!dto.name?.length && !dto.typeId?.length)
+			typeof dto.name !== 'string' &&
+			typeof dto.typeId !== 'string' &&
+			typeof dto.pin !== 'string' &&
+			typeof dto.icon !== 'number'
 		)
 			throw new BadRequestException(`Error update Device_module: no props to change`);
 		const element = await this.repository.findOneBy({id});
 		if (!element) throw new NotFoundException(`Error update Device_module: element not found`);
+		if (
+			!dto.name?.length &&
+			!dto.typeId?.length &&
+			!dto.pin?.length &&
+			(typeof dto.icon !== 'number' || dto.icon === element.icon)
+		)
+			throw new BadRequestException(`Error update Device_module: no props to change`);
+
 		if (typeof dto.name === 'string' && dto.name.length) element.name = dto.name;
 		if (typeof dto.typeId === 'string' && dto.typeId.length) {
 			const type = await this.ModuleTypeRepository.findOneBy({id: dto.typeId});
 			if (!type) throw new NotFoundException(`Error update Device_module: type not found`);
 			element.typeId = dto.typeId;
 		}
+		if (typeof dto.pin === 'string') element.pin = dto.pin;
+		if (typeof dto.icon === 'number') element.icon = dto.icon;
 
 		let updated: Device_Module | null = null;
 		try {

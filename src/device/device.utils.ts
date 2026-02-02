@@ -1,6 +1,7 @@
 export interface DeviceMqttResponseDTO {
 	id: 'report';
 	device: string;
+	pins: string[];
 }
 
 export const parseMqttMessage = (payload: Buffer): DeviceMqttResponseDTO | null => {
