@@ -64,6 +64,7 @@ export class DeviceModuleController {
 	getByType(@Param('id', new ParseUUIDPipe()) id: string) {
 		return this.service.getByType(id);
 	}
+
 	@Get('element/:id')
 	@ApiOperation({
 		summary: 'Get a device info based on the element id'
@@ -95,8 +96,10 @@ export class DeviceModuleController {
 			1: {
 				value: {
 					name: 'Sensor de temperatura',
+					pin: '5',
 					typeId: '2e209e85-b64e-47ec-9228-551ab612e1da',
-					deviceId: 'CC:50:E3:47:D1:DF'
+					deviceId: 'CC:50:E3:47:D1:DF',
+					icon: -1
 				}
 			}
 		}
@@ -127,7 +130,9 @@ export class DeviceModuleController {
 			1: {
 				value: {
 					name: 'New_Name',
-					typeId: '0290acfa-ec9c-40dc-8e46-123d703c156e'
+					typeId: '0290acfa-ec9c-40dc-8e46-123d703c156e',
+					pin: '3',
+					icon: 0
 				}
 			}
 		}
@@ -139,6 +144,31 @@ export class DeviceModuleController {
 	})
 	updateOne(@Param('id', new ParseUUIDPipe()) id: string, @Body() data: UpdateDeviceModuleDTO) {
 		return this.service.updateOne(id, data);
+	}
+
+	@Patch('icon')
+	@ApiOperation({
+		summary: 'sets the icon index'
+	})
+	@ApiBody({
+		description: 'ID of the target module and desired index',
+		required: true,
+		examples: {
+			1: {
+				value: {
+					id: DeviceModuleExample.id,
+					index: '2'
+				}
+			}
+		}
+	})
+	@ApiResponse({
+		description: 'Value of the desired index to confirm',
+		status: 201,
+		example: 2
+	})
+	updateIcon(@Body() data: {id: string; index: number}) {
+		return this.service.setIcon(data.id, data.index);
 	}
 
 	@Delete('delete/:id')
