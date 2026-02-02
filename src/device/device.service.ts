@@ -6,17 +6,19 @@ import {
 	NotFoundException
 } from '@nestjs/common';
 import {InjectRepository} from '@nestjs/typeorm';
+import {Device_Module} from 'src/database/entities/device-module.entity';
 import {Device} from 'src/database/entities/device.entity';
 import {MacAddressRegex, MatchesMAC} from 'src/global/functions';
 import {MqttService} from 'src/mqtt/mqtt.service';
 import {Repository} from 'typeorm';
-import {DeviceDeleteDTO, DeviceUpdateDTO} from './device.dto';
-import {parseMqttMessage} from './device.utils';
+import {DeviceDeleteDTO, DeviceSendActionDTO, DeviceUpdateDTO} from './device.dto';
+import {DeviceMqttResponseDTO, parseMqttMessage} from './device.utils';
 
 @Injectable()
 export class DeviceService {
 	constructor(
 		@InjectRepository(Device) private repository: Repository<Device>,
+		@InjectRepository(Device_Module) private DeviceRepo: Repository<Device_Module>,
 		private mqttService: MqttService
 	) {}
 
@@ -155,9 +157,9 @@ export class DeviceService {
 		return true;
 	}
 
-	async getConnectedMqttDevices(): Promise<string[]> {
+	async getConnectedMqttDevices(): Promise<DeviceMqttResponseDTO[]> {
 		const topic = process.env.MQTT_DEFAULT_TOPIC!;
-		const devices = new Set<string>();
+		const devices = new Map<string, DeviceMqttResponseDTO>();
 
 		return new Promise((resolve) => {
 			const handler = (receivedTopic: string, payload: Buffer) => {
@@ -166,8 +168,13 @@ export class DeviceService {
 						`Error get connected mqtt devices: received topic != default topic`
 					);
 				const msg = parseMqttMessage(payload);
-				if (!msg) return null;
-				devices.add(msg.device);
+				if (!msg || msg.id !== 'report' || !msg.device || !Array.isArray(msg.pins)) return null;
+
+				devices.set(msg.device, {
+					device: msg.device,
+					pins: msg.pins,
+					id: 'report'
+				});
 			};
 
 			this.mqttService.addHandler(handler);
@@ -176,8 +183,33 @@ export class DeviceService {
 
 			setTimeout(() => {
 				this.mqttService.removeHandler(handler);
-				resolve([...devices]);
-			}, 2000);
+				resolve([...devices.values()]);
+			}, 1500);
 		});
+	}
+
+	async sendAction(data: DeviceSendActionDTO): Promise<string> {
+		if (!data) throw new BadRequestException(`Error device sendAction: invalid prop`);
+		if (!MatchesMAC(data.id)) throw new BadRequestException(`Error device sendAction: invalid id`);
+		if (data.action !== 'read' && data.action !== 'set')
+			throw new BadRequestException(`Error device sendAction: invalid action`);
+		if (!data.value || !data.value.length)
+			throw new BadRequestException(`Error device sendAction: invalid value`);
+		const target = await this.DeviceRepo.findOne({
+			where: {
+				pin: data.pin,
+				deviceId: data.id
+			}
+		});
+		if (!target) throw new BadRequestException(`Error device sendAction: target module not found`);
+		const resolved = await this.mqttService.publishWithAck(process.env.MQTT_DEFAULT_TOPIC || '', {
+			pin: data.pin,
+			action: data.action,
+			id: data.id,
+			value: data.value
+		});
+		if (typeof resolved !== 'string' || !resolved.length)
+			throw new Error(`Error device sendAction: publish promise rejected`);
+		return resolved;
 	}
 }
