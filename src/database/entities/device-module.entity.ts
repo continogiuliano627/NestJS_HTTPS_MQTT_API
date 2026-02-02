@@ -8,6 +8,9 @@ export class Device_Module {
 	@Column()
 	name: string;
 
+	@Column()
+	pin: string;
+
 	@Index()
 	@Column()
 	deviceId: string; //RELATED DEVICE MAC
