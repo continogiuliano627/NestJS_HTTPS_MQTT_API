@@ -18,4 +18,7 @@ export class Device_Module {
 	@Index()
 	@Column()
 	typeId: string; //ID DEL TIPO DE MODULO
+
+	@Column({type: 'int', default: -1})
+	icon: number;
 }
