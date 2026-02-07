@@ -8,6 +8,9 @@ export class Device {
 	@Column({unique: false})
 	name: string;
 
+	@Column({type: 'simple-json', nullable: true})
+	pins: string[] | null;
+
 	@Column({default: false, type: 'boolean'})
 	isDeleted: boolean;
 
