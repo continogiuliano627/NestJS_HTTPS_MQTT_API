@@ -1,4 +1,5 @@
 /* verificar igualdad objetos */
+
 export type Primitive = string | number | boolean | null | undefined;
 export type PlainObject = {[key: string]: Primitive | PlainObject | Array<Primitive | PlainObject>};
 
