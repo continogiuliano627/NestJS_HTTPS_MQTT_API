@@ -8,7 +8,7 @@ import {
 import {InjectRepository} from '@nestjs/typeorm';
 import {Device_Module} from 'src/database/entities/device-module.entity';
 import {Device} from 'src/database/entities/device.entity';
-import {MacAddressRegex, MatchesMAC} from 'src/global/functions';
+import {deepEqual, MacAddressRegex, MatchesMAC, PlainObject} from 'src/global/functions';
 import {MqttService} from 'src/mqtt/mqtt.service';
 import {Repository} from 'typeorm';
 import {DeviceDeleteDTO, DeviceSendActionDTO, DeviceUpdateDTO} from './device.dto';
@@ -22,7 +22,7 @@ export class DeviceService {
 		private mqttService: MqttService
 	) {}
 
-	async createOne(name: string, id: string): Promise<Device> {
+	async createOne(name: string, id: string, pins: string[] | null): Promise<Device> {
 		if (!name || name.length < 3)
 			throw new BadRequestException('Error creating device: invalid name received');
 		if (!id || !MacAddressRegex.test(id))
@@ -42,7 +42,7 @@ export class DeviceService {
 			else throw new ConflictException('Error creating device: Device must be restored');
 		}
 		try {
-			await this.repository.save({id, name});
+			await this.repository.save({id, name, pins: pins?.length ? pins : null});
 		} catch (error) {
 			throw new InternalServerErrorException(`Error creating device: ${JSON.stringify(error)}`);
 		}
@@ -56,8 +56,6 @@ export class DeviceService {
 		if (!data) throw new BadRequestException('Error updating device: no data received');
 		if (!data.id || !MatchesMAC(data.id))
 			throw new BadRequestException('Error updating device: invalid mac received');
-		if (!data.name || data.name.length < 3)
-			throw new BadRequestException('Error updating device: invalid name received');
 		const target = await this.repository.findOneBy({id: data.id});
 		//verificamos que exista y si isDeleted es true debe cambiar, no se puede cambiar un eliminado salvo se restaure
 		if (!target) throw new ConflictException('Error updating device: target device doesnt exists');
@@ -65,12 +63,25 @@ export class DeviceService {
 			throw new BadRequestException(
 				`Error updating device: cant update deleted device, only restore`
 			);
-		if (data.name && target.name === data.name)
-			throw new BadRequestException('Error updating device: new data is the same as existing data');
+		//validamos que exista algun dato a cambiar
+		if (!data.name && !data.pins)
+			throw new BadRequestException('Error updating device: no data to change.');
+		let changeReceived: boolean = false;
+		if (data.name && data.name !== target.name) changeReceived = true;
+
+		if (
+			data.pins &&
+			!deepEqual(data.pins as unknown as PlainObject, target.pins as unknown as PlainObject)
+		)
+			changeReceived = true;
+
+		if (!changeReceived)
+			throw new BadRequestException('Error updating device: received data is the same as old.');
 		try {
 			await this.repository.save({
 				id: data.id,
 				name: data.name || target.name,
+				pins: data.pins || target.pins,
 				isDeleted: typeof data.isDeleted === 'boolean' ? data.isDeleted : target.isDeleted
 			});
 		} catch (error) {
@@ -79,8 +90,9 @@ export class DeviceService {
 		const updated = await this.repository.findOneBy({id: data.id});
 		if (!updated)
 			throw new ConflictException('Error updating device: device not found after update');
-		if (updated.name !== data.name)
-			throw new InternalServerErrorException('Error updating device: device name wasnt updated');
+		target.updatedAt = updated.updatedAt;
+		if (deepEqual(target as unknown as PlainObject, updated as unknown as PlainObject))
+			throw new InternalServerErrorException('Error updating device: device wasnt updated');
 		return updated;
 	}
 

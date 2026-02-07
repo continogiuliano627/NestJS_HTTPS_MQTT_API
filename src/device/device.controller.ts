@@ -110,7 +110,7 @@ export class DeviceController {
 		isArray: false
 	})
 	createOne(@Body() data: DeviceCreateDTO) {
-		return this.deviceService.createOne(data.name, data.id);
+		return this.deviceService.createOne(data.name, data.id, data.pins);
 	}
 
 	@Post('send_action')
