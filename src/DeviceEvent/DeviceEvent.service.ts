@@ -2,7 +2,6 @@ import {
 	BadRequestException,
 	Injectable,
 	InternalServerErrorException,
-	NotFoundException,
 	OnModuleInit
 } from '@nestjs/common';
 import {InjectRepository} from '@nestjs/typeorm';
@@ -14,7 +13,6 @@ import {MatchesMAC} from 'src/global/functions';
 import {mqttResp} from 'src/mqtt/mqtt.dto';
 import {MqttService} from 'src/mqtt/mqtt.service';
 import {Repository} from 'typeorm';
-import {DeviceEventComplete} from './DeviceEvent.dto';
 
 @Injectable()
 export class DeviceEventService implements OnModuleInit {
@@ -107,17 +105,13 @@ export class DeviceEventService implements OnModuleInit {
 		return result.affected !== 0;
 	}
 
-	async getByDevice(id: string): Promise<DeviceEventComplete[]> {
+	async getByDevice(id: string): Promise<DeviceActionLog[]> {
 		if (!MatchesMAC(id))
 			throw new BadRequestException(`Error get Device event by device: bad id received`);
 
-		const targetDevice = await this.DeviceRepo.findOneBy({id});
-		if (!targetDevice)
-			throw new NotFoundException(`Error get Device event by device: device not found`);
-
 		const elements = await this.DeviceActionRepo.find({
 			where: {
-				deviceId: id
+				Device: {id}
 			},
 			relations: ['device'],
 			order: {
@@ -125,24 +119,6 @@ export class DeviceEventService implements OnModuleInit {
 			}
 		});
 
-		const deviceCache = new Map<string, Device>();
-
-		return Promise.all(
-			elements.map(async (e) => {
-				let device = deviceCache.get(e.deviceId);
-
-				if (!device) {
-					const target = await this.DeviceRepo.findOneBy({id: e.deviceId});
-					device = target || undefined;
-					if (!device)
-						throw new NotFoundException(
-							`Error completing device event data: target device not found`
-						);
-					deviceCache.set(e.deviceId, device);
-				}
-
-				return {...e, device};
-			})
-		);
+		return elements;
 	}
 }
