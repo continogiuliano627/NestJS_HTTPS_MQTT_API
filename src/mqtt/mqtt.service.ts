@@ -44,27 +44,24 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
 				'pin' in parsed
 			) {
 				const msg = parsed as mqttResp;
+				if (msg.action === 'update' || msg.action === 'error') {
+					const key = `${msg.id}:${msg.pin}`;
+					const pending = this.pending.get(key);
 
-				if (msg.action !== 'update' && msg.action !== 'error') return;
+					if (pending) {
+						clearTimeout(pending.timeout);
+						this.pending.delete(key);
 
-				const key = `${msg.id}:${msg.pin}`;
-				const pending = this.pending.get(key);
-
-				if (!pending) return;
-
-				clearTimeout(pending.timeout);
-				this.pending.delete(key);
-
-				if (msg.action == 'update') {
-					pending.resolve(msg.value ?? '');
-					return;
-				}
-
-				if (msg.action === 'error') {
-					pending.reject(
-						new BadRequestException(`Device error on ${key}: ${msg.error ?? 'unknown_error'}`)
-					);
-					return;
+						if (msg.action == 'update') {
+							pending.resolve(msg.value ?? '');
+							return;
+						} else {
+							pending.reject(
+								new BadRequestException(`Device error on ${key}: ${msg.error ?? 'unknown_error'}`)
+							);
+						}
+						return;
+					}
 				}
 			}
 
