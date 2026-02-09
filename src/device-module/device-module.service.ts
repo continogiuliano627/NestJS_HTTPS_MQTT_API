@@ -10,7 +10,7 @@ import {Device_Module} from 'src/database/entities/device-module.entity';
 import {Device} from 'src/database/entities/device.entity';
 import {ModuleType} from 'src/database/entities/module-type.entity';
 import {MatchesMAC} from 'src/global/functions';
-import {In, Repository} from 'typeorm';
+import {Repository} from 'typeorm';
 import {CreateDeviceModuleDTO, Device_ModuleDTO, UpdateDeviceModuleDTO} from './device-module.dto';
 
 @Injectable()
@@ -24,44 +24,6 @@ export class DeviceModuleService {
 		private ModuleTypeRepository: Repository<ModuleType>
 	) {}
 
-	async makeRelations(elements: Device_Module[]): Promise<Device_ModuleDTO[]> {
-		if (!elements.length) return [];
-
-		const relatedDevices = new Set<string>();
-		const relatedTypes = new Set<string>();
-
-		for (const e of elements) {
-			relatedDevices.add(e.deviceId);
-			relatedTypes.add(e.typeId);
-		}
-		const [targetDevices, targetTypes] = await Promise.all([
-			this.DeviceRepository.find({where: {id: In([...relatedDevices])}}),
-			this.ModuleTypeRepository.find({where: {id: In([...relatedTypes])}})
-		]);
-
-		const deviceMap = new Map(targetDevices.map((d) => [d.id, d]));
-		const typeMap = new Map(targetTypes.map((t) => [t.id, t]));
-
-		return elements.map((e) => {
-			const device = deviceMap.get(e.deviceId);
-			const type = typeMap.get(e.typeId);
-			if (!device || !type)
-				throw new InternalServerErrorException(
-					`Error make device_module relations: Broken foring key reference`
-				);
-			return {
-				id: e.id,
-				name: e.name,
-				device,
-				deviceId: e.deviceId,
-				type,
-				typeId: e.typeId,
-				pin: e.pin,
-				icon: -1
-			};
-		});
-	}
-
 	async create(dto: CreateDeviceModuleDTO): Promise<Device_ModuleDTO> {
 		if (!dto) throw new BadRequestException(`Error create Device_module: no prop received`);
 		if (!dto.name?.length)
@@ -71,69 +33,71 @@ export class DeviceModuleService {
 		if (!dto.typeId)
 			throw new BadRequestException(`Error create Device_module: no type_id received`);
 		if (!dto.pin) throw new BadRequestException(`Error create Device_module: no pin received`);
-		const device = await this.DeviceRepository.findOne({
-			where: {
-				id: dto.deviceId
-			}
-		});
+
+		const device = await this.DeviceRepository.findOneBy({id: dto.deviceId});
 		if (!device)
 			throw new NotFoundException(
 				`Error create Device_module: no device found for id '${dto.deviceId}'`
 			);
-		const type = await this.ModuleTypeRepository.findOne({
-			where: {
-				id: dto.typeId
-			}
-		});
+		const type = await this.ModuleTypeRepository.findOneBy({id: dto.typeId});
 		if (!type)
 			throw new NotFoundException(
 				`Error create Device_module: no type found for id '${dto.typeId}'`
 			);
-
+		const entity = this.repository.create({
+			name: dto.name,
+			device: device,
+			type,
+			icon: -1,
+			pin: dto.pin
+		});
 		let saved: Device_Module | null = null;
 		try {
-			const entity = this.repository.create(dto);
 			saved = await this.repository.save(entity);
 		} catch (error) {
 			throw new InternalServerErrorException(
 				`Error create Device_module: ${JSON.stringify(error)}`
 			);
 		}
-		if (!saved)
-			throw new InternalServerErrorException(
-				`Error create Device_module: cant save '${JSON.stringify(saved)}'`
-			);
-		return (await this.makeRelations([saved]))[0];
+		return saved as unknown as Device_ModuleDTO;
 	}
 
 	async getAll(): Promise<Device_ModuleDTO[]> {
-		const elements = await this.repository.find();
-		return this.makeRelations(elements);
+		const elements = await this.repository.find({relations: ['device', 'type']});
+		return elements as unknown as Device_ModuleDTO[];
 	}
 
 	async getById(id: string): Promise<Device_ModuleDTO> {
 		if (!isUUID(id))
 			throw new BadRequestException(`Error get Device_module by id: id must be UUID`);
-		const targetElement = await this.repository.findOneBy({id});
+		const targetElement = await this.repository.findOne({
+			relations: ['device', 'type'],
+			where: {id}
+		});
 		if (!targetElement)
 			throw new NotFoundException(`Error get Device_module by id: element not found`);
-		return (await this.makeRelations([targetElement]))[0];
+		return targetElement;
 	}
 
 	async getByDevice(id: string): Promise<Device_ModuleDTO[]> {
 		if (!MatchesMAC(id))
-			throw new BadRequestException(`Error get Device_module by device: id must be UUID`);
-		const targetElement = await this.repository.findBy({deviceId: id});
+			throw new BadRequestException(`Error get Device_module by device: id must be a MAC address`);
+		const targetElement = await this.repository.find({
+			where: {deviceId: id},
+			relations: ['device', 'type']
+		});
 		if (!targetElement.length) return [];
-		return await this.makeRelations(targetElement);
+		return targetElement;
 	}
 
 	async getByType(id: string): Promise<Device_ModuleDTO[]> {
 		if (!isUUID(id))
 			throw new BadRequestException(`Error get Device_module by type: id must be UUID`);
-		const targetElement = await this.repository.findBy({typeId: id});
-		if (!targetElement.length) return [];
-		return await this.makeRelations(targetElement);
+		const targetElement = await this.repository.find({
+			where: {typeId: id},
+			relations: ['device', 'type']
+		});
+		return targetElement;
 	}
 
 	async updateOne(id: string, dto: UpdateDeviceModuleDTO): Promise<Device_ModuleDTO> {
@@ -146,7 +110,7 @@ export class DeviceModuleService {
 			typeof dto.icon !== 'number'
 		)
 			throw new BadRequestException(`Error update Device_module: no props to change`);
-		const element = await this.repository.findOneBy({id});
+		const element = await this.repository.findOne({where: {id}, relations: ['device', 'type']});
 		if (!element) throw new NotFoundException(`Error update Device_module: element not found`);
 		if (
 			!dto.name?.length &&
@@ -158,9 +122,12 @@ export class DeviceModuleService {
 
 		if (typeof dto.name === 'string' && dto.name.length) element.name = dto.name;
 		if (typeof dto.typeId === 'string' && dto.typeId.length) {
-			const type = await this.ModuleTypeRepository.findOneBy({id: dto.typeId});
+			const type = await this.ModuleTypeRepository.findOne({
+				where: {id: dto.typeId},
+				relations: ['device', 'type']
+			});
 			if (!type) throw new NotFoundException(`Error update Device_module: type not found`);
-			element.typeId = dto.typeId;
+			element.type = type;
 		}
 		if (typeof dto.pin === 'string') element.pin = dto.pin;
 		if (typeof dto.icon === 'number') element.icon = dto.icon;
@@ -175,7 +142,7 @@ export class DeviceModuleService {
 		}
 		if (!updated)
 			throw new InternalServerErrorException(`Error update Device_module: updated went null`);
-		return (await this.makeRelations([updated]))[0];
+		return updated;
 	}
 
 	async setIcon(id: string, index: number): Promise<number> {
@@ -185,7 +152,8 @@ export class DeviceModuleService {
 		const target = await this.repository.findOneBy({id});
 		if (!target)
 			throw new BadRequestException(`Error set Device_module icon: target doesnt exists`);
-		if (!(await this.repository.update(id, {icon: index})))
+		const result = await this.repository.update(id, {icon: index});
+		if (!result.affected)
 			throw new InternalServerErrorException(`Error set Device_module icon: couldnt update`);
 		return index;
 	}
