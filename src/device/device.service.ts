@@ -18,7 +18,7 @@ import {DeviceMqttResponseDTO, parseMqttMessage} from './device.utils';
 export class DeviceService {
 	constructor(
 		@InjectRepository(Device) private repository: Repository<Device>,
-		@InjectRepository(Device_Module) private DeviceRepo: Repository<Device_Module>,
+		@InjectRepository(Device_Module) private ModuleRepo: Repository<Device_Module>,
 		private mqttService: MqttService
 	) {}
 
@@ -202,26 +202,40 @@ export class DeviceService {
 
 	async sendAction(data: DeviceSendActionDTO): Promise<string> {
 		if (!data) throw new BadRequestException(`Error device sendAction: invalid prop`);
+
 		if (!MatchesMAC(data.id)) throw new BadRequestException(`Error device sendAction: invalid id`);
+
 		if (data.action !== 'read' && data.action !== 'set')
 			throw new BadRequestException(`Error device sendAction: invalid action`);
+
 		if (!data.value || !data.value.length)
 			throw new BadRequestException(`Error device sendAction: invalid value`);
-		const target = await this.DeviceRepo.findOne({
+
+		const operatorIndex = data.pin.indexOf(':');
+		if (operatorIndex === -1)
+			throw new BadRequestException(`Error device sendAction: invalid pin format`);
+
+		const parsedPin = data.pin.slice(0, operatorIndex);
+
+		const target = await this.ModuleRepo.findOne({
 			where: {
-				pin: data.pin,
+				pin: parsedPin,
 				deviceId: data.id
 			}
 		});
+
 		if (!target) throw new BadRequestException(`Error device sendAction: target module not found`);
+
 		const resolved = await this.mqttService.publishWithAck(process.env.MQTT_DEFAULT_TOPIC || '', {
-			pin: data.pin,
+			pin: parsedPin,
 			action: data.action,
 			id: data.id,
 			value: data.value
 		});
-		if (typeof resolved !== 'string' || !resolved.length)
+
+		if (typeof resolved !== 'string')
 			throw new Error(`Error device sendAction: publish promise rejected`);
+
 		return resolved;
 	}
 }
