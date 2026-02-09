@@ -1,10 +1,33 @@
-import {Controller, Delete, Query} from '@nestjs/common';
-import {ApiOperation, ApiQuery, ApiResponse} from '@nestjs/swagger';
+import {Controller, Delete, Get, Param, Query} from '@nestjs/common';
+import {ApiOperation, ApiParam, ApiQuery, ApiResponse} from '@nestjs/swagger';
 import {DeviceEventService} from './DeviceEvent.service';
 
 @Controller()
 export class DeviceEventController {
 	constructor(private readonly Service: DeviceEventService) {}
+
+	@Get('/device/:param')
+	@ApiOperation({
+		summary: 'Get device events by device MAC',
+		description: 'Returns all device action logs associated with a specific device MAC address.'
+	})
+	@ApiParam({
+		name: 'param',
+		required: true,
+		description: 'Device MAC address',
+		example: '48:55:19:15:D4:8B'
+	})
+	@ApiResponse({
+		status: 200,
+		description: 'List of device action logs retrieved successfully.'
+	})
+	@ApiResponse({
+		status: 400,
+		description: 'Invalid MAC address format.'
+	})
+	getByDevice(@Param('param') param: string) {
+		return this.Service.getByDevice(param);
+	}
 
 	@Delete('delete')
 	@ApiOperation({
