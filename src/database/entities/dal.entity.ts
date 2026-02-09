@@ -1,5 +1,14 @@
-import {Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn} from 'typeorm';
+import {
+	Column,
+	CreateDateColumn,
+	Entity,
+	Index,
+	JoinColumn,
+	ManyToOne,
+	PrimaryGeneratedColumn
+} from 'typeorm';
 import {DeviceActionStatus} from '../../device_action_log/dal.dto';
+import {Device} from './device.entity';
 
 @Entity({name: 'device_action_log'})
 @Index(['deviceId'])
@@ -11,6 +20,10 @@ export class DeviceActionLog {
 
 	@Column({type: 'varchar', name: 'device_id'})
 	deviceId: string;
+
+	@ManyToOne(() => Device)
+	@JoinColumn({name: 'deviceId'})
+	Device: Device;
 
 	@Column({type: 'varchar', length: 8})
 	pin: string;
