@@ -1,12 +1,13 @@
 import {Controller, Delete, Get, Param, Query} from '@nestjs/common';
 import {ApiOperation, ApiParam, ApiQuery, ApiResponse} from '@nestjs/swagger';
+import {DeviceActionLog} from 'src/database/entities/dal.entity';
 import {DeviceEventService} from './DeviceEvent.service';
 
 @Controller()
 export class DeviceEventController {
 	constructor(private readonly Service: DeviceEventService) {}
 
-	@Get('/device/:param')
+	@Get('event/device/:param')
 	@ApiOperation({
 		summary: 'Get device events by device MAC',
 		description: 'Returns all device action logs associated with a specific device MAC address.'
@@ -28,8 +29,38 @@ export class DeviceEventController {
 	getByDevice(@Param('param') param: string) {
 		return this.Service.getByDevice(param);
 	}
+	@Get('event/module/:param')
+	@ApiOperation({
+		summary: 'Get device action logs by module id',
+		description:
+			'Returns all action logs associated to a specific device module. The relation is resolved using the module deviceId and pin.'
+	})
+	@ApiParam({
+		name: 'param',
+		type: 'string',
+		format: 'uuid',
+		required: true,
+		description: 'UUID of the device module'
+	})
+	@ApiResponse({
+		status: 200,
+		description: 'List of action logs associated to the module',
+		type: DeviceActionLog,
+		isArray: true
+	})
+	@ApiResponse({
+		status: 400,
+		description: 'Invalid module id'
+	})
+	@ApiResponse({
+		status: 404,
+		description: 'Module not found'
+	})
+	getEventsByModule(@Param('param') param: string) {
+		return this.Service.getEventsByModule(param);
+	}
 
-	@Delete('delete')
+	@Delete('event/delete')
 	@ApiOperation({
 		summary: 'Delete device action logs between two dates',
 		description:
