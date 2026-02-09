@@ -18,12 +18,12 @@ export class DeviceActionLog {
 	@PrimaryGeneratedColumn('uuid')
 	id: string;
 
-	@Column({type: 'varchar', name: 'device_id'})
+	@Column({type: 'varchar', name: 'deviceId'})
 	deviceId: string;
 
 	@ManyToOne(() => Device)
 	@JoinColumn({name: 'deviceId'})
-	Device: Device;
+	device: Device;
 
 	@Column({type: 'varchar', length: 8})
 	pin: string;
