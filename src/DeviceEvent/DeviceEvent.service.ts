@@ -2,9 +2,11 @@ import {
 	BadRequestException,
 	Injectable,
 	InternalServerErrorException,
+	NotFoundException,
 	OnModuleInit
 } from '@nestjs/common';
 import {InjectRepository} from '@nestjs/typeorm';
+import {isUUID} from 'class-validator';
 import {DeviceActionLog} from 'src/database/entities/dal.entity';
 import {Device_Module} from 'src/database/entities/device-module.entity';
 import {Device} from 'src/database/entities/device.entity';
@@ -111,7 +113,7 @@ export class DeviceEventService implements OnModuleInit {
 
 		const elements = await this.DeviceActionRepo.find({
 			where: {
-				Device: {id}
+				deviceId: id
 			},
 			relations: ['device'],
 			order: {
@@ -120,5 +122,24 @@ export class DeviceEventService implements OnModuleInit {
 		});
 
 		return elements;
+	}
+
+	async getEventsByModule(moduleId: string): Promise<DeviceActionLog[]> {
+		if (!isUUID(moduleId))
+			throw new BadRequestException(`Error get events by module: id must be UUID`);
+
+		const module = await this.DeviceModuleRepo.findOneBy({id: moduleId});
+
+		if (!module) throw new NotFoundException(`Error get events by module: module not found`);
+
+		return this.DeviceActionRepo.find({
+			where: {
+				deviceId: module.deviceId,
+				pin: module.pin
+			},
+			order: {
+				requestedAt: 'DESC'
+			}
+		});
 	}
 }
