@@ -23,9 +23,23 @@ export type mqttReportResp = {
 
 export type mqttResp = {
 	id: string;
-	action: 'update';
+	action: string;
 	pin: string;
 	value: string;
+	error?: string;
 };
 
 export type MqttMessageHandler = (topic: string, payload: Buffer) => void;
+export type PendingKey = string;
+export interface PendingRequest {
+	resolve: (value: string) => void;
+	reject: (reason?: unknown) => void;
+	timeout: NodeJS.Timeout;
+}
+
+export const MqttMessageExample: mqttReadMsg = {
+	id: 'DEVICE_MAC',
+	action: 'read',
+	pin: '0',
+	value: '-1'
+};

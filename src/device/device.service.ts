@@ -6,30 +6,43 @@ import {
 	NotFoundException
 } from '@nestjs/common';
 import {InjectRepository} from '@nestjs/typeorm';
-import {isUUID} from 'class-validator';
+import {Device_Module} from 'src/database/entities/device-module.entity';
 import {Device} from 'src/database/entities/device.entity';
+import {deepEqual, MacAddressRegex, MatchesMAC, PlainObject} from 'src/global/functions';
 import {MqttService} from 'src/mqtt/mqtt.service';
 import {Repository} from 'typeorm';
-import {DeviceDeleteDTO, DeviceUpdateDTO} from './device.dto';
-import {parseMqttMessage} from './device.utils';
+import {DeviceDeleteDTO, DeviceSendActionDTO, DeviceUpdateDTO} from './device.dto';
+import {DeviceMqttResponseDTO, parseMqttMessage} from './device.utils';
 
 @Injectable()
 export class DeviceService {
 	constructor(
 		@InjectRepository(Device) private repository: Repository<Device>,
+		@InjectRepository(Device_Module) private ModuleRepo: Repository<Device_Module>,
 		private mqttService: MqttService
 	) {}
 
-	async createOne(name: string): Promise<Device> {
+	async createOne(name: string, id: string, pins: string[] | null): Promise<Device> {
 		if (!name || name.length < 3)
 			throw new BadRequestException('Error creating device: invalid name received');
-		const exists = await this.repository.findOneBy({
+		if (!id || !MacAddressRegex.test(id))
+			throw new BadRequestException(`Error creating device: Bad id received`);
+		const existsName = await this.repository.findOneBy({
 			name
 		});
-		if (exists && !exists.isDeleted)
-			throw new ConflictException('Error creating device: Device already exists');
+		if (existsName) {
+			if (!existsName.isDeleted)
+				throw new ConflictException('Error creating device: Device with this name already exists');
+			else throw new ConflictException('Error creating device: Device must be restored');
+		}
+		const existsId = await this.repository.findOneBy({id});
+		if (existsId) {
+			if (!existsId.isDeleted)
+				throw new ConflictException('Error creating device: Device with this id already exists');
+			else throw new ConflictException('Error creating device: Device must be restored');
+		}
 		try {
-			await this.repository.save({name});
+			await this.repository.save({id, name, pins: pins?.length ? pins : null});
 		} catch (error) {
 			throw new InternalServerErrorException(`Error creating device: ${JSON.stringify(error)}`);
 		}
@@ -41,22 +54,34 @@ export class DeviceService {
 
 	async updateOne(data: DeviceUpdateDTO): Promise<Device> {
 		if (!data) throw new BadRequestException('Error updating device: no data received');
-		if (!data.id || !isUUID(data.id))
-			throw new BadRequestException('Error updating device: invalid uuid received');
-		if (!data.name || data.name.length < 3)
-			throw new BadRequestException('Error updating device: invalid name received');
+		if (!data.id || !MatchesMAC(data.id))
+			throw new BadRequestException('Error updating device: invalid mac received');
 		const target = await this.repository.findOneBy({id: data.id});
 		//verificamos que exista y si isDeleted es true debe cambiar, no se puede cambiar un eliminado salvo se restaure
-		if (!target || (typeof data.isDeleted === 'boolean' && target.isDeleted && data.isDeleted))
-			throw new ConflictException('Error updating device: target device doesnt exists');
-		if (data.name && target.name === data.name)
-			throw new BadRequestException('Error updating device: new data is the same as existing data');
-		if (data.isDeleted && target.isDeleted === data.isDeleted)
-			throw new BadRequestException('Error updating device: new data is the same as existing data');
+		if (!target) throw new ConflictException('Error updating device: target device doesnt exists');
+		if (target.isDeleted)
+			throw new BadRequestException(
+				`Error updating device: cant update deleted device, only restore`
+			);
+		//validamos que exista algun dato a cambiar
+		if (!data.name && !data.pins)
+			throw new BadRequestException('Error updating device: no data to change.');
+		let changeReceived: boolean = false;
+		if (data.name && data.name !== target.name) changeReceived = true;
+
+		if (
+			data.pins &&
+			!deepEqual(data.pins as unknown as PlainObject, target.pins as unknown as PlainObject)
+		)
+			changeReceived = true;
+
+		if (!changeReceived)
+			throw new BadRequestException('Error updating device: received data is the same as old.');
 		try {
 			await this.repository.save({
 				id: data.id,
 				name: data.name || target.name,
+				pins: data.pins || target.pins,
 				isDeleted: typeof data.isDeleted === 'boolean' ? data.isDeleted : target.isDeleted
 			});
 		} catch (error) {
@@ -65,13 +90,14 @@ export class DeviceService {
 		const updated = await this.repository.findOneBy({id: data.id});
 		if (!updated)
 			throw new ConflictException('Error updating device: device not found after update');
-		if (updated.name !== data.name)
-			throw new InternalServerErrorException('Error updating device: device name wasnt updated');
+		target.updatedAt = updated.updatedAt;
+		if (deepEqual(target as unknown as PlainObject, updated as unknown as PlainObject))
+			throw new InternalServerErrorException('Error updating device: device wasnt updated');
 		return updated;
 	}
 
 	async findById(id: string): Promise<Device> {
-		if (!id || !isUUID(id))
+		if (!id || !MatchesMAC(id))
 			throw new BadRequestException('Error find device by ID: bad id received');
 		const found = await this.repository.findOneBy({id});
 		if (!found) throw new NotFoundException('Error find device by ID: element not found');
@@ -87,7 +113,7 @@ export class DeviceService {
 	}
 
 	async findAll(): Promise<Device[]> {
-		return await this.repository.find();
+		return await this.repository.findBy({isDeleted: false});
 	}
 
 	async findDeleted(): Promise<Device[]> {
@@ -95,7 +121,8 @@ export class DeviceService {
 	}
 
 	async restoreDeleted(id: string): Promise<Device> {
-		if (!isUUID(id)) throw new BadRequestException('Error restore device: ID provided is not UUID');
+		if (!MatchesMAC(id))
+			throw new BadRequestException('Error restore device: ID provided is not MAC');
 		const target = await this.repository.findOneBy({id});
 		if (!target) throw new NotFoundException('Error restore device: target error not found');
 		if (!target.isDeleted) throw new ConflictException('Error restore device: device not deleted');
@@ -113,7 +140,7 @@ export class DeviceService {
 	}
 
 	async deleteOne(data: DeviceDeleteDTO): Promise<boolean> {
-		if (!data || !data.id || !isUUID(data.id))
+		if (!data || !data.id || !MatchesMAC(data.id))
 			throw new BadRequestException('Error delete device: bad id received');
 		const found = await this.repository.findOneBy({id: data.id});
 		if (!found) throw new NotFoundException('Error delete device: element not found');
@@ -142,9 +169,9 @@ export class DeviceService {
 		return true;
 	}
 
-	async getConnectedMqttDevices(): Promise<string[]> {
+	async getConnectedMqttDevices(): Promise<DeviceMqttResponseDTO[]> {
 		const topic = process.env.MQTT_DEFAULT_TOPIC!;
-		const devices = new Set<string>();
+		const devices = new Map<string, DeviceMqttResponseDTO>();
 
 		return new Promise((resolve) => {
 			const handler = (receivedTopic: string, payload: Buffer) => {
@@ -153,8 +180,13 @@ export class DeviceService {
 						`Error get connected mqtt devices: received topic != default topic`
 					);
 				const msg = parseMqttMessage(payload);
-				if (!msg) return null;
-				devices.add(msg.device);
+				if (!msg || msg.id !== 'report' || !msg.device || !Array.isArray(msg.pins)) return null;
+
+				devices.set(msg.device, {
+					device: msg.device,
+					pins: msg.pins,
+					id: 'report'
+				});
 			};
 
 			this.mqttService.addHandler(handler);
@@ -163,8 +195,47 @@ export class DeviceService {
 
 			setTimeout(() => {
 				this.mqttService.removeHandler(handler);
-				resolve([...devices]);
-			}, 2000);
+				resolve([...devices.values()]);
+			}, 1500);
 		});
+	}
+
+	async sendAction(data: DeviceSendActionDTO): Promise<string> {
+		if (!data) throw new BadRequestException(`Error device sendAction: invalid prop`);
+
+		if (!MatchesMAC(data.id)) throw new BadRequestException(`Error device sendAction: invalid id`);
+
+		if (data.action !== 'read' && data.action !== 'set')
+			throw new BadRequestException(`Error device sendAction: invalid action`);
+
+		if (!data.value || !data.value.length)
+			throw new BadRequestException(`Error device sendAction: invalid value`);
+
+		const operatorIndex = data.pin.indexOf(':');
+		if (operatorIndex === -1)
+			throw new BadRequestException(`Error device sendAction: invalid pin format`);
+
+		const parsedPin = data.pin.slice(0, operatorIndex);
+
+		const target = await this.ModuleRepo.findOne({
+			where: {
+				pin: parsedPin,
+				deviceId: data.id
+			}
+		});
+
+		if (!target) throw new BadRequestException(`Error device sendAction: target module not found`);
+
+		const resolved = await this.mqttService.publishWithAck(process.env.MQTT_DEFAULT_TOPIC || '', {
+			pin: parsedPin,
+			action: data.action,
+			id: data.id,
+			value: data.value
+		});
+
+		if (typeof resolved !== 'string')
+			throw new Error(`Error device sendAction: publish promise rejected`);
+
+		return resolved;
 	}
 }

@@ -1,16 +1,12 @@
-import {
-	Body,
-	Controller,
-	Delete,
-	Get,
-	Param,
-	ParseUUIDPipe,
-	Patch,
-	Post,
-	Query
-} from '@nestjs/common';
+import {Body, Controller, Delete, Get, Param, Patch, Post, Query} from '@nestjs/common';
 import {ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse} from '@nestjs/swagger';
-import {DeviceDeleteDTO, DeviceExample, DeviceUpdateDTO} from './device.dto';
+import {
+	DeviceCreateDTO,
+	DeviceDeleteDTO,
+	DeviceExample,
+	DeviceSendActionDTO,
+	DeviceUpdateDTO
+} from './device.dto';
 import {DeviceService} from './device.service';
 
 @Controller('device')
@@ -58,7 +54,7 @@ export class DeviceController {
 		example: DeviceExample,
 		isArray: false
 	})
-	getById(@Param('id', new ParseUUIDPipe()) id: string) {
+	getById(@Param('id') id: string) {
 		return this.deviceService.findById(id);
 	}
 
@@ -103,7 +99,7 @@ export class DeviceController {
 		description: 'JSON with the desired name',
 		examples: {
 			1: {
-				value: {name: 'Modulo Luces Entrada patio'}
+				value: {name: 'Modulo Luces Entrada patio', id: 'CC:50:E3:47:D1:DF'}
 			}
 		}
 	})
@@ -113,8 +109,35 @@ export class DeviceController {
 		example: DeviceExample,
 		isArray: false
 	})
-	createOne(name: string) {
-		return this.deviceService.createOne(name);
+	createOne(@Body() data: DeviceCreateDTO) {
+		return this.deviceService.createOne(data.name, data.id, data.pins);
+	}
+
+	@Post('send_action')
+	@ApiOperation({
+		summary: 'Sends an MQTT action to a target device'
+	})
+	@ApiBody({
+		description: 'Data for the action to send',
+		required: true,
+		examples: {
+			1: {
+				value: {
+					id: DeviceExample.id,
+					action: 'set',
+					pin: 2,
+					value: 'LOW'
+				}
+			}
+		}
+	})
+	@ApiResponse({
+		status: 204,
+		description: 'String confirming the action',
+		isArray: false
+	})
+	sendAction(@Body() data: DeviceSendActionDTO) {
+		return this.deviceService.sendAction(data);
 	}
 
 	@Patch('/update')
@@ -161,7 +184,7 @@ export class DeviceController {
 		description: 'Device restored',
 		example: DeviceExample
 	})
-	restoreOne(@Param('id', new ParseUUIDPipe()) id: string) {
+	restoreOne(@Param('id') id: string) {
 		return this.deviceService.restoreDeleted(id);
 	}
 
@@ -195,7 +218,7 @@ export class DeviceController {
 		status: 204,
 		example: true
 	})
-	deleteOne(data: DeviceDeleteDTO) {
+	deleteOne(@Body() data: DeviceDeleteDTO) {
 		return this.deviceService.deleteOne(data);
 	}
 }

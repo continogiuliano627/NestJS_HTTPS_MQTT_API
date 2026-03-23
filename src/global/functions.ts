@@ -1,4 +1,5 @@
 /* verificar igualdad objetos */
+
 export type Primitive = string | number | boolean | null | undefined;
 export type PlainObject = {[key: string]: Primitive | PlainObject | Array<Primitive | PlainObject>};
 
@@ -40,4 +41,9 @@ export const deepEqual = (obj1: PlainObject, obj2: PlainObject): boolean => {
 	}
 
 	return true;
+};
+
+export const MacAddressRegex = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i;
+export const MatchesMAC = (id: string): boolean => {
+	return MacAddressRegex.test(id);
 };

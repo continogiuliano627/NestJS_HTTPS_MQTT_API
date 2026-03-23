@@ -1,4 +1,4 @@
-import {IsBoolean, IsString, Matches} from 'class-validator';
+import {IsArray, IsBoolean, IsOptional, IsString, Matches} from 'class-validator';
 import {CreateDateColumn, UpdateDateColumn} from 'typeorm';
 
 export const DeviceExample: DeviceDTO = {
@@ -6,7 +6,8 @@ export const DeviceExample: DeviceDTO = {
 	name: 'Modulo Luces Entrada',
 	isDeleted: false,
 	createdAt: new Date('1997-12-22T15:13:00Z'),
-	updatedAt: new Date('2026-01-04T00:23:00Z')
+	updatedAt: new Date('2026-01-04T00:23:00Z'),
+	pins: ['A0', '2', '13']
 };
 
 export class DeviceDTO {
@@ -16,6 +17,10 @@ export class DeviceDTO {
 
 	@IsString()
 	name: string;
+
+	@IsArray()
+	@IsOptional()
+	pins: string[] | null;
 
 	@IsBoolean()
 	isDeleted: boolean;
@@ -27,6 +32,18 @@ export class DeviceDTO {
 	createdAt: Date;
 }
 
+export class DeviceCreateDTO {
+	@Matches(/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i)
+	@IsString()
+	id: string;
+
+	@IsString()
+	name: string;
+
+	@IsArray()
+	pins: string[] | null;
+}
+
 export class DeviceUpdateDTO {
 	@Matches(/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i)
 	@IsString()
@@ -34,6 +51,10 @@ export class DeviceUpdateDTO {
 
 	@IsString()
 	name?: string;
+
+	@IsArray()
+	@IsOptional()
+	pins?: string[] | null;
 
 	@IsBoolean()
 	isDeleted?: boolean;
@@ -45,4 +66,10 @@ export class DeviceDeleteDTO {
 	id: string;
 	@IsBoolean()
 	force: boolean;
+}
+export class DeviceSendActionDTO {
+	id: string;
+	action: 'read' | 'set';
+	pin: string;
+	value: string;
 }

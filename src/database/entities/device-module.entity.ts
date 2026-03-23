@@ -1,4 +1,4 @@
-import {Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn} from 'typeorm';
+import {Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn} from 'typeorm';
 import {Device} from './device.entity';
 import {ModuleType} from './module-type.entity';
 
@@ -10,17 +10,25 @@ export class Device_Module {
 	@Column()
 	name: string;
 
-	@ManyToOne(() => Device, (device) => device.modules, {onDelete: 'CASCADE'})
+	@Column()
+	pin: string;
+
+	@Index()
+	@Column()
+	deviceId: string; //RELATED DEVICE MAC
+
+	@ManyToOne(() => Device, {onDelete: 'CASCADE'})
 	@JoinColumn({name: 'deviceId'})
 	device: Device;
 
+	@Index()
 	@Column()
-	deviceId: string;
+	typeId: string; //ID DEL TIPO DE MODULO
 
-	@ManyToOne(() => ModuleType)
+	@ManyToOne(() => ModuleType, {onDelete: 'CASCADE'})
 	@JoinColumn({name: 'typeId'})
 	type: ModuleType;
 
-	@Column()
-	typeId: string;
+	@Column({type: 'int', default: -1})
+	icon: number;
 }

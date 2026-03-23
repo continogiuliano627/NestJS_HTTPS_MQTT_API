@@ -3,7 +3,10 @@ import {ConfigModule} from '@nestjs/config';
 import {AppController} from './app.controller';
 import {AppService} from './app.service';
 import {DatabaseModule} from './database/database.module';
+import {DeviceModuleModule} from './device-module/device-module.module';
 import {DeviceModule} from './device/device.module';
+import {DeviceActionLogModule} from './device_action_log/dal.module';
+import {DeviceEventModule} from './DeviceEvent/DeviceEventModule';
 import {ErrorLogsModule} from './error_logs/error_log.module';
 import {ModuleTypeModule} from './module-type/module-type.module';
 import {MqttModule} from './mqtt/mqtt.module';
@@ -16,11 +19,14 @@ import {UserModule} from './user/user.module';
 			envFilePath: '.env'
 		}),
 		DatabaseModule,
-		UserModule,
 		DeviceModule,
-		MqttModule,
+		DeviceActionLogModule,
+		DeviceEventModule,
+		DeviceModuleModule,
 		ErrorLogsModule,
-		ModuleTypeModule
+		ModuleTypeModule,
+		MqttModule,
+		UserModule
 	],
 	controllers: [AppController],
 	providers: [AppService]
