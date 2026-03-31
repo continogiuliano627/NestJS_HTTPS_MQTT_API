@@ -1,98 +1,316 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 📡 ESP8266 IoT Firmware
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+> Firmware for ESP8266-based modules with MQTT communication, sensor reporting, IR input handling, and local HTTP provisioning — designed for local IoT ecosystems backed by a NestJS control plane.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 📋 Table of Contents
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Provisioning](#provisioning)
+- [MQTT Protocol](#mqtt-protocol)
+- [Hardware & Pin Model](#hardware--pin-model)
+- [Sensors & Actuators](#sensors--actuators)
+- [LED State Machine](#led-state-machine)
+- [Operational Flow](#operational-flow)
+- [Backend Integration](#backend-integration)
+- [Limitations](#limitations)
 
-## Project setup
+---
 
-```bash
-$ pnpm install
+## Overview
+
+The device operates in **dual mode**:
+
+| Mode                 | Purpose                                 |
+| -------------------- | --------------------------------------- |
+| 🔵 Access Point (AP) | Initial provisioning via HTTP           |
+| 🟢 Station (STA)     | Normal operation within a local network |
+
+**Capabilities at a glance:**
+
+- Remote control and monitoring via MQTT
+- DHT11 temperature & humidity sensing
+- Samsung IR remote input handling
+- Local configuration via browser (HTTP)
+- Unique device identity derived from MAC address
+
+---
+
+## Architecture
+
+### Communication Model
+
+| Property      | Value                                 |
+| ------------- | ------------------------------------- |
+| Protocol      | MQTT over TCP                         |
+| Broker Port   | `1883`                                |
+| Topic         | `ESP_COM` (shared across all devices) |
+| Auth Username | `custom_username`                     |
+| Auth Password | `custom_password`                     |
+
+All devices **publish and subscribe** to the same topic, filtering messages by `id`.
+
+### Device Identification
+
+Each device generates a unique ID from its MAC address:
+
+```
+AA:BB:CC:DD:EE:FF
 ```
 
-## Compile and run the project
+Used for message routing, backend association, and device tracking.
 
-```bash
-# development
-$ pnpm run start
+---
 
-# watch mode
-$ pnpm run start:dev
+## Provisioning
 
-# production mode
-$ pnpm run start:prod
+### Access Point
+
+On boot, the device starts a configuration AP:
+
+| Property | Value         |
+| -------- | ------------- |
+| SSID     | `ESP01_02`    |
+| Password | `ESP40637184` |
+| IP       | `192.168.4.1` |
+
+### HTTP Endpoints
+
+| Endpoint  | Method | Description            |
+| --------- | ------ | ---------------------- |
+| `/`       | GET    | Configuration UI       |
+| `/save`   | POST   | Save Wi-Fi credentials |
+| `/saveIP` | POST   | Save MQTT broker IP    |
+
+### EEPROM Layout
+
+| Field          | Address | Size |
+| -------------- | ------- | ---- |
+| SSID           | 0       | 32 B |
+| Password       | 32      | 64 B |
+| MQTT Broker IP | 96      | 16 B |
+| Config Flag    | 132     | 1 B  |
+
+> Config flag `0xA5` indicates a valid stored configuration.
+
+### Wi-Fi Behavior
+
+- Always runs in **AP + STA** combined mode
+- If valid credentials exist → attempts STA connection, retrying every 10 seconds
+- Connection failures → LED blinks slowly
+- Connected → LED stays ON
+
+---
+
+## MQTT Protocol
+
+### Topic
+
+```
+ESP_COM
 ```
 
-## Run tests
+### Message Formats
 
-```bash
-# unit tests
-$ pnpm run test
+#### ▶️ Command — Backend → Device
 
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+```json
+{
+	"id": "DEVICE_ID",
+	"action": "set | read",
+	"pin": "PIN",
+	"value": "VALUE"
+}
 ```
 
-## Deployment
+#### ✅ State Update — Device → Backend
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+```json
+{
+	"id": "DEVICE_ID",
+	"action": "update",
+	"pin": "PIN",
+	"value": "VALUE"
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+#### ❌ Error Response
 
-## Resources
+```json
+{
+	"id": "DEVICE_ID",
+	"action": "error",
+	"pin": "PIN",
+	"error": "unavailable_pin"
+}
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+### Special Messages
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+#### Device Capability Discovery
 
-## Support
+**Request:**
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```json
+{"id": "device_report"}
+```
 
-## Stay in touch
+**Response:**
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```json
+{
+	"id": "report",
+	"device": "DEVICE_ID",
+	"pins": ["1:LED OUT", "2:DHT11", "3:IR_SENSOR"]
+}
+```
 
-## License
+---
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## Hardware & Pin Model
+
+The firmware uses an **abstract logical pin system**, decoupled from physical GPIO numbers.
+
+```c
+enum PinModeType {
+  PIN_UNUSED,
+  PIN_INPUT,
+  PIN_GPIO,
+  PIN_ANALOG,
+  PIN_RESERVED
+};
+```
+
+### Pin Map
+
+| Logical Pin | Mode     | Description    |
+| ----------- | -------- | -------------- |
+| 1           | GPIO     | General output |
+| 2           | RESERVED | Onboard LED    |
+| 3           | RESERVED | IR Receiver    |
+| 0           | RESERVED | System use     |
+
+> ⚠️ The `pin` field in MQTT messages is a **logical identifier**, not a direct physical GPIO mapping. Some pins (e.g. `"12"`) are virtual.
+
+---
+
+## Sensors & Actuators
+
+### 🌡️ DHT11 Sensor
+
+| Property           | Value     |
+| ------------------ | --------- |
+| Physical Pin       | GPIO1     |
+| Poll Interval      | 5 seconds |
+| Temp threshold     | ±0.25 °C  |
+| Humidity threshold | ±1%       |
+
+**Example output:**
+
+```json
+{ "id": "DEVICE_ID", "action": "update", "pin": "12", "value": { "temp": 25.30 } }
+{ "id": "DEVICE_ID", "action": "update", "pin": "12", "value": { "hum": 60.0 } }
+```
+
+### 📻 IR Receiver
+
+| Property     | Value          |
+| ------------ | -------------- |
+| Physical Pin | GPIO3          |
+| Protocol     | Samsung 32-bit |
+| Trigger Code | `0x707000FF`   |
+
+On match: toggles LED state and sends an MQTT update.
+
+### 💡 Digital Output (Actuator)
+
+**Write:**
+
+```json
+{"id": "DEVICE_ID", "action": "set", "pin": "1", "value": "1"}
+```
+
+Accepted values: `"1"` / `"HIGH"` or `"0"` / `"LOW"`
+
+**Read:**
+
+```json
+{"id": "DEVICE_ID", "action": "read", "pin": "1"}
+```
+
+---
+
+## LED State Machine
+
+| State               | Behavior   |
+| ------------------- | ---------- |
+| Boot                | OFF        |
+| Connecting to Wi-Fi | Fast blink |
+| Wi-Fi connected     | ON         |
+| MQTT reconnecting   | Slow blink |
+
+---
+
+## Operational Flow
+
+```
+1. Boot
+2. Start AP mode
+3. Load config from EEPROM
+4. Attempt Wi-Fi connection (STA)
+5. Connect to MQTT broker
+6. Subscribe to ESP_COM
+7. Main loop:
+   ├── Handle HTTP requests
+   ├── Maintain MQTT connection
+   ├── Process incoming messages
+   ├── Send sensor updates
+   └── Handle IR input
+```
+
+---
+
+## Backend Integration
+
+The NestJS backend must:
+
+- Subscribe to `ESP_COM`
+- Filter messages by `id` field
+- Handle action types: `update`, `error`, `report`
+- Maintain a device registry indexed by MAC-derived `deviceId`
+- Interpret `pin` as a **logical identifier**, not a hardware GPIO number
+
+---
+
+## ⚠️ Limitations
+
+### Protocol
+
+- Single shared topic — no device isolation
+- No QoS guarantees
+- No message acknowledgment
+
+### Parsing
+
+- Manual JSON parsing via `strstr`
+- Fragile to format variations
+
+### Security
+
+- Shared MQTT credentials across all devices
+- No per-device authentication
+
+### Data Model
+
+- Inconsistent pin identifiers
+- Mixed primitive and object values in the `value` field
+
+> These are known constraints. Protocol normalization and stricter data contracts are recommended for scaling.
+
+---
+
+## 📄 License
+
+This project is unlicensed. Add your preferred license here.
